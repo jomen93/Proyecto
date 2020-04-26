@@ -2,11 +2,16 @@ import numpy as np
 
 class Cellular_automata(object):
 	"""Initial definition of the world. Determine the dimensions"""
-	def __init__(self, size):
+	def __init__(self, size,Aa,a,hh):
 		self.size = size
+		self.Aa = Aa
+		self.a = a
+		self.hh = hh
+
+
 		self.grid = np.random.choice([0, 1], size=(self.size,self.size), p=[.8,.2])
 		#self.grid = np.zeros((self.size,self.size))
-		self.eta = np.random.uniform
+
 
 	def state(self):
 		"""
@@ -20,15 +25,30 @@ class Cellular_automata(object):
 		pass
 
 	def make_cluster(self,center):
-		#self.grid = np.zeros((self.size,self.size))
 		square_mas = int(center+center/6.)
 		square_men = int(center-center/6.)
 		self.grid[square_men:square_mas,square_men:square_mas] = np.random.choice([0, 1], 
 			size=(square_mas-square_men,square_mas-square_men), p=[.2,.8])
 
 
-	def A(i,j):
-		pass
+	def A(self, i,j):
+		xi = np.random.uniform(-1,1,1)
+		eta = np.random.uniform(-1,1,(self.size,self.size))
+		return self.Aa*xi + self.a*eta[i,j]
+
+	def h(self,i):
+		alpha = np.random.uniform(-1,1,1)
+		return self.hh*alpha
+
+	def I(self,i):
+		I_aux = 0
+		for ii in range(self.size):
+			for jj in range(self.size):
+				I_aux += self.A(i,jj)*self.grid[ii,jj] 
+		return (1/self.size**2)*I_aux + self.h(i)
+
+	def p(self,i):
+		return (1)/(1+np.exp(-2*self.I(i)))
 
 
 	def update(self):

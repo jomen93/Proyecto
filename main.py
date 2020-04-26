@@ -1,11 +1,14 @@
 import matplotlib.pyplot as plt 
 from automata_1 import Cellular_automata
-import numpy as np 
+
 # Parameters 
-size = 128
+size = 32
+A = 1
+a = 1
+h = 1
 
 # Class constructor
-aut = Cellular_automata(size)
+aut = Cellular_automata(size,A,a,h)
 #initial state
 
 aut.state()
@@ -22,5 +25,4 @@ aut.make_cluster(size/3)
 	#plt.savefig("im_"+str(1))
 #	plt.show() 
 
-print(np.random.uniform(-1,1,1))
-
+print(aut.p(1),1-aut.p(1))
