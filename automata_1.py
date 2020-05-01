@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt 
 
 class Cellular_automata(object):
 	"""Initial definition of the world. Determine the dimensions"""
@@ -9,6 +10,7 @@ class Cellular_automata(object):
 		self.hh = hh
 
 
+
 	def make_grid(self, p = 0.5):
 		"""
 		Method to construct the grid, p refers to the probability
@@ -17,6 +19,18 @@ class Cellular_automata(object):
 		self.grid = np.random.rand(self.size,self.size)
 		self.grid = np.where(self.grid >= p ,0,1)
 
+	def show_grid(self):
+		live = np.sum(self.grid > 0)
+		death = self.size**2-np.sum(self.grid>0)
+
+		plt.imshow(self.grid, cmap = "nipy_spectral")
+		plt.colorbar()
+		plt.savefig("percolation")
+		plt.xlabel("x")
+		plt.xlabel("y")
+		plt.title("Grid Traders live ={} death = {}".format(live,death))
+		plt.show()
+
 
 	def state(self):
 		"""
@@ -24,12 +38,9 @@ class Cellular_automata(object):
 		First = active cell
 		Second = death cell
 		"""
-		live = np.sum(self.grid)
-		death = self.size**2-np.sum(self.grid)
+		live = np.sum(self.grid > 0)
+		death = self.size**2-np.sum(self.grid>0)
 		print("system state, live = {}, death = {}".format(live,death))
-		pass
-
-	def find(self):
 		pass
 
 	def make_clusters(self):
@@ -112,34 +123,62 @@ class Cellular_automata(object):
 							clust[i,j],labels = find(clust[i-1,j],labels)
 
 		self.grid = new_label(clust,labels)
+		self.n_clusters = len(np.unique(self.grid))-1
+		print("Cluster numbers = {}".format(self.n_clusters))
+
+
+	def A(self,k,i,j):
+		xi = np.random.uniform(-1,1,self.n_clusters)
+		eta = np.random.uniform(-1,1,(self.size,self.size))
+		return self.Aa*xi[k] + self.a*eta[i,j]
+
+	def h(self,k,i):
+		zita = np.random.uniform(-1,1,(self.n_clusters))
+		return self.hh*zita[k]
+
+
+	def sigma(self,k,i):
+		self.node_index = np.where(self.grid == np.unique(self.grid)[k])
+		self.node_index = zip(self.node_index[0],self.node_index[1])
+		return self.grid[self.node_index[i]]/np.unique(self.grid)[k]
+
+	def I(self,k,i):
+		I_aux = 0
+		Nk = len(self.node_index)
+		for j in range(1):
+			I_aux += self.A(k,i,j)*self.sigma(k,j) + self.h(k,i) 
+		return I_aux/Nk
+
+	def p(self,k,i):
+		"""
+		The probability is determined by analogy to heat bath dynamics 
+		with formal temperature k_b*T = 1
+		"""
+		self.node_index = np.where(self.grid == np.unique(self.grid)[k])
+		self.node_index = zip(self.node_index[0],self.node_index[1])
+		return 1./(1+np.exp(-2*self.I(k,i)))
+
+
+	def update(self):
+		return P
+
+
+
+	def x(self):
+		pass
 		
 
-	def A(self,i,j,l):
-		xi = np.random.uniform(-1,1,1)
-		eta = np.random.uniform(-1,1,(self.size,self.size,self.size))
-		return self.Aa*xi + self.a*eta[i,j,l]
-
-	def h(self,i):
-		alpha = np.random.uniform(-1,1,1)
-		return self.hh*alpha
-
-	def I(self,i,j):
-		I_aux = 0
-		for ii in range(self.size):
-			for jj in range(self.size):
-				I_aux += self.A(i,j,l)*self.grid[ii,jj] 
-		return I_aux/(self.size**2) + self.h(i)
-
-	def p(self,i,j):
-		return 1./(1+np.exp(-2*self.I(i,j)))
 
 
-	def update(self,model):
+
+
+	def update1(self,model):
 		"""
+		** Game of life **
 		Examine the number of neighbors for each cell of the matriz 
 		and determine the future of the cell. 1 or 0 
 
-		Algprithm 
+		Algorithm 
 
 		1. Choose a cell
 		2. Count neighbors
