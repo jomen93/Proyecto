@@ -1,28 +1,24 @@
 import matplotlib.pyplot as plt 
 from automata_1 import Cellular_automata
+import numpy as np 
 
 # Parameters 
-size = 32
-A = 1
-a = 1
-h = 1
+size = 128
+A = 1.0
+a = 0.001
+h = 0
 
 # Class constructor
 aut = Cellular_automata(size,A,a,h)
 #initial state
+aut.make_grid(p = 0.5)
+aut.make_clusters()
 
-aut.state()
-aut.make_cluster(size/2)
-aut.make_cluster(size/3)
-#plt.imshow(aut.grid, cmap = plt.cm.Blues)
-#plt.show()
 
-#for i in range(20):
-#	aut.update()
-#	aut.state()
-
-#	plt.imshow(aut.grid, cmap = plt.cm.Blues)
-	#plt.savefig("im_"+str(1))
-#	plt.show() 
-
-print(aut.p(1),1-aut.p(1))
+plt.imshow(aut.grid, cmap = "nipy_spectral")
+plt.colorbar()
+plt.savefig("percolation")
+plt.xlabel("x")
+plt.xlabel("y")
+plt.title("Grid Traders")
+plt.show()
