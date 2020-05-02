@@ -122,10 +122,29 @@ class Cellular_automata(object):
 							clust[i,j],labels = find(clust[i-1,j],labels)
 
 		self.grid = new_label(clust,labels)
+		# Clusters numbers
 		self.n_clusters = len(np.unique(self.grid))-1
-		self.xi = np.random.uniform(-1,1,self.n_clusters)
+		# Matrix of index number for a k-cluster
+		# first index refers to k-clster
+		# second to find coordinate in cluster matrix
+		self.index = []
+		for k in range(self.n_clusters):
+			s = np.where(self.grid == np.unique(self.grid)[k])
+			self.index.append(zip(s[0],s[1]))
 
+		self.index = np.array(self.index)
+		# Random variables to define A
+		# xi lives in [0,clusters number]
+		self.xi = np.random.uniform(-1,1,self.n_clusters)
+		# eta lives in [0,spins_numbers in k cluster number :0,k-cluster number]
+		self.eta = []
+		for k in range(self.n_clusters):
+			self.eta.append(np.random.uniform(-1,1,(len(self.index[k]),len(self.index[k]))))
+		self.eta = np.array(self.eta)
 		print("Cluster numbers = {}".format(self.n_clusters))
+		# zita lives in [0, clusters number]
+		self.zita = np.random.uniform(-1,1,self.n_clusters)
+
 
 	def index(self,k):
 		s = np.where(self.grid == np.unique(self.grid)[k])
@@ -133,21 +152,23 @@ class Cellular_automata(object):
 		return s
 
 	def A(self,k,i,j):
-		eta = np.random.uniform(-1,1,(self.n_clusters,self.n_clusters))
-		return self.Aa*self.xi[k] + self.a*eta[i,j]
+		rA = self.Aa*self.xi[k] + self.a*self.eta[k][i][j]
+		return rA
 
 	def h(self,k,i):
-		zita = np.random.uniform(-1,1,(self.n_clusters))
-		return self.hh*zita[k]
+		return self.hh*self.zita[k]
 
 	def sigma(self,k,i):
-		return self.grid[self.index(k)[i]]
+		return self.grid[self.index[k][i]]
 	
 	def I(self,k,i):
 		I_aux = 0
-		Nk = len(self.index(k))
-		for j in range(1):
-			I_aux += self.A(k,i,j)*self.sigma(k,j) + self.h(k,i) 
+		Nk = len(self.index[k])
+		for j in range(Nk):
+			if k == 0:
+				I_aux += self.A(k,i,j)*(self.sigma(k,j)) + self.h(k,i) 
+			else:
+				I_aux += self.A(k,i,j)*(self.sigma(k,j)/k) + self.h(k,i) 
 		return I_aux/Nk
 
 	def p(self,k,i):
@@ -155,35 +176,33 @@ class Cellular_automata(object):
 		The probability is determined by analogy to heat bath dynamics 
 		with formal temperature k_b*T = 1
 		"""
-		#self.node_index = np.where(self.grid == np.unique(self.grid)[k])
-		#self.node_index = zip(self.node_index[0],self.node_index[1])
-
+	
 		# Atention with the espin of the 0-cluster and 0-trader !!
 		return 1./(1+np.exp(-2*self.I(k,i)))
 
-	def update(self,k):
-		
-		for i in range(len(self.index(k))):
-			print(self.p(k,i))
-			if self.p(k,i) >= 0.5:
-				self.grid[self.index(k)[i]] = k
-			else:
-				self.grid[self.index(k)[i]] = 0
-		
-
-
-# Estoy pasando la funcion update
-
-
+	def update(self):
+		for k in range(self.n_clusters):
+			for i in range(len(self.index[k])):
+				#print(self.p(k,i))
+				if self.p(k,i) >= 0.5:
+					self.grid[self.index[k][i]] = k
+				else:
+					self.grid[self.index[k][i]] = 0
+	
 	def x(self):
+		"""
+		Weighted average for the orientation of the spins 
+		Ncl : the number of clusters on the grid
+		Nk : the size of the kth cluster
+		beta: normalization constant
+		"""
 		pass
-		
+			
 
 
+	
 
-
-
-	def update1(self,model):
+	def update_GOL(self,model):
 		"""
 		** Game of life **
 		Examine the number of neighbors for each cell of the matriz 

@@ -14,11 +14,9 @@ aut = Cellular_automata(size,A,a,h)
 #initial state
 aut.make_grid(p = 0.5)
 aut.make_clusters()
-print(aut.grid)
-print(aut.update(10))
-print(aut.grid)
-
-
-
+print(aut.show_grid())
+for _ in range(10):
+	print(aut.update())
+	print(aut.show_grid())
 
 
