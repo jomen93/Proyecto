@@ -10,7 +10,6 @@ class Cellular_automata(object):
 		self.hh = hh
 
 
-
 	def make_grid(self, p = 0.5):
 		"""
 		Method to construct the grid, p refers to the probability
@@ -124,27 +123,29 @@ class Cellular_automata(object):
 
 		self.grid = new_label(clust,labels)
 		self.n_clusters = len(np.unique(self.grid))-1
+		self.xi = np.random.uniform(-1,1,self.n_clusters)
+
 		print("Cluster numbers = {}".format(self.n_clusters))
 
+	def index(self,k):
+		s = np.where(self.grid == np.unique(self.grid)[k])
+		s = zip(s[0],s[1])
+		return s
 
 	def A(self,k,i,j):
-		xi = np.random.uniform(-1,1,self.n_clusters)
-		eta = np.random.uniform(-1,1,(self.size,self.size))
-		return self.Aa*xi[k] + self.a*eta[i,j]
+		eta = np.random.uniform(-1,1,(self.n_clusters,self.n_clusters))
+		return self.Aa*self.xi[k] + self.a*eta[i,j]
 
 	def h(self,k,i):
 		zita = np.random.uniform(-1,1,(self.n_clusters))
 		return self.hh*zita[k]
 
-
 	def sigma(self,k,i):
-		self.node_index = np.where(self.grid == np.unique(self.grid)[k])
-		self.node_index = zip(self.node_index[0],self.node_index[1])
-		return self.grid[self.node_index[i]]/np.unique(self.grid)[k]
-
+		return self.grid[self.index(k)[i]]
+	
 	def I(self,k,i):
 		I_aux = 0
-		Nk = len(self.node_index)
+		Nk = len(self.index(k))
 		for j in range(1):
 			I_aux += self.A(k,i,j)*self.sigma(k,j) + self.h(k,i) 
 		return I_aux/Nk
@@ -154,14 +155,24 @@ class Cellular_automata(object):
 		The probability is determined by analogy to heat bath dynamics 
 		with formal temperature k_b*T = 1
 		"""
-		self.node_index = np.where(self.grid == np.unique(self.grid)[k])
-		self.node_index = zip(self.node_index[0],self.node_index[1])
+		#self.node_index = np.where(self.grid == np.unique(self.grid)[k])
+		#self.node_index = zip(self.node_index[0],self.node_index[1])
+
+		# Atention with the espin of the 0-cluster and 0-trader !!
 		return 1./(1+np.exp(-2*self.I(k,i)))
 
+	def update(self,k):
+		
+		for i in range(len(self.index(k))):
+			print(self.p(k,i))
+			if self.p(k,i) >= 0.5:
+				self.grid[self.index(k)[i]] = k
+			else:
+				self.grid[self.index(k)[i]] = 0
+		
 
-	def update(self):
-		return P
 
+# Estoy pasando la funcion update
 
 
 	def x(self):
