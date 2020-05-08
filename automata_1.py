@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt 
+import matplotlib.patches as mpatches
 
 class Cellular_automata(object):
 	"""Initial definition of the world. Determine the dimensions"""
@@ -8,28 +9,38 @@ class Cellular_automata(object):
 		self.Aa = Aa
 		self.a = a
 		self.hh = hh
+		
 
-
-	def make_grid(self, p = 0.5):
+	def make_grid(self, p):
 		"""
 		Method to construct the grid, p refers to the probability
 		to find ones
 		"""
-		self.grid = np.random.rand(self.size,self.size)
-		self.grid = np.where(self.grid >= p ,0,1)
+		# This procedure generates only a random matrix with ones and zeros, it's wrong !
+		# but kept this
+		#self.grid = np.random.rand(self.size,self.size)
+		#self.grid = np.where(self.grid >= p ,0,1)
+		p_Buy, p_Sell = p*np.random.random_sample(2)
+		self.grid = np.random.choice([-1,1,0], size = (self.size,self.size),p=[p_Buy,p_Sell,1-p_Sell-p_Buy])
+
 
 	def show_grid(self):
-		live = np.sum(self.grid > 0)
-		death = self.size**2-np.sum(self.grid>0)
+		selling = np.sum(self.grid > 0)
+		buying = np.sum(self.grid < 0)
+		inactive = self.size**2-selling - buying
 
-		plt.imshow(self.grid, cmap = "nipy_spectral")
-		plt.colorbar()
-		plt.savefig("percolation")
+		values = np.unique(self.grid.ravel())
+		plt.figure(figsize =(10,8))
+		im = plt.imshow(self.grid, interpolation = None)
+		colors = [im.cmap(im.norm(value)) for value in values]
+		patches = [ mpatches.Patch(color=colors[i], label="Level {l}".format(l=values[i]) ) for i in range(len(values)) ]
+		plt.legend(handles = patches,loc = 4, borderaxespad = 0.)
 		plt.xlabel("x")
 		plt.xlabel("y")
-		plt.title("Grid Traders live ={} death = {}".format(live,death))
+		plt.title("selling ={}, buying = {}, inactive ={}".format(selling,buying,inactive))
+		plt.savefig("percolation")
 		plt.show()
-
+		print("state report")
 
 	def state(self):
 		"""
@@ -39,8 +50,8 @@ class Cellular_automata(object):
 		"""
 		live = np.sum(self.grid > 0)
 		death = self.size**2-np.sum(self.grid>0)
-		print("system state, live = {}, death = {}".format(live,death))
-		pass
+		#print("system state, live = {}, death = {}".format(live,death))
+		return live, death
 
 	def make_clusters(self):
 		"""
@@ -121,18 +132,21 @@ class Cellular_automata(object):
 							labels = union(clust[i,j-1],clust[i-1,j],labels)
 							clust[i,j],labels = find(clust[i-1,j],labels)
 
-		self.grid = new_label(clust,labels)
+		#self.grid = new_label(clust,labels)
+		self.grid_label = new_label(clust,labels) 
+
 		# Clusters numbers
-		self.n_clusters = len(np.unique(self.grid))-1
+		self.n_clusters = len(np.unique(self.grid_label))-1
 		# Matrix of index number for a k-cluster
 		# first index refers to k-clster
 		# second to find coordinate in cluster matrix
 		self.index = []
 		for k in range(self.n_clusters):
-			s = np.where(self.grid == np.unique(self.grid)[k])
+			s = np.where(self.grid_label == np.unique(self.grid_label)[k])
 			self.index.append(zip(s[0],s[1]))
 
 		self.index = np.array(self.index)
+
 		# Random variables to define A
 		# xi lives in [0,clusters number]
 		self.xi = np.random.uniform(-1,1,self.n_clusters)
@@ -141,15 +155,9 @@ class Cellular_automata(object):
 		for k in range(self.n_clusters):
 			self.eta.append(np.random.uniform(-1,1,(len(self.index[k]),len(self.index[k]))))
 		self.eta = np.array(self.eta)
-		print("Cluster numbers = {}".format(self.n_clusters))
+		#print("Cluster numbers = {}".format(self.n_clusters))
 		# zita lives in [0, clusters number]
 		self.zita = np.random.uniform(-1,1,self.n_clusters)
-
-
-	def index(self,k):
-		s = np.where(self.grid == np.unique(self.grid)[k])
-		s = zip(s[0],s[1])
-		return s
 
 	def A(self,k,i,j):
 		rA = self.Aa*self.xi[k] + self.a*self.eta[k][i][j]
@@ -180,15 +188,23 @@ class Cellular_automata(object):
 		# Atention with the espin of the 0-cluster and 0-trader !!
 		return 1./(1+np.exp(-2*self.I(k,i)))
 
-	def update(self):
+	def update_traders(self):
 		for k in range(self.n_clusters):
 			for i in range(len(self.index[k])):
-				#print(self.p(k,i))
-				if self.p(k,i) >= 0.5:
-					self.grid[self.index[k][i]] = k
-				else:
-					self.grid[self.index[k][i]] = 0
+				if self.grid[self.index[k][i]] != 0:
+					if self.p(k,i) > 0.5:
+						self.grid[self.index[k][i]] = 1
+					if  self.p(k,i) == 0.5:
+						self.grid[self.index[k][i]] = self.grid[self.index[k][i]] 
+					if self.p(k,i) < 0.5:
+						self.grid[self.index[k][i]] = -1
+
+			print("update successful")
 	
+
+	def update_grid(self):
+		pass
+
 	def x(self):
 		"""
 		Weighted average for the orientation of the spins 
@@ -196,14 +212,46 @@ class Cellular_automata(object):
 		Nk : the size of the kth cluster
 		beta: normalization constant
 		"""
-		pass
-			
+		X = 0; N = 0
+		Ncl = self.n_clusters
+		for k in range(Ncl):
+			Nk = len(self.index[k])
+			for i in range(Nk):
+				if k == 0:
+					X += Nk*self.sigma(k,i)
+					N += self.sigma(k,i)
+				else:
+					X += Nk*self.sigma(k,i)/k
+					N += self.sigma(k,i)/k
+		return float(X)/N
+
+	def R(self,t):
+		Rt = []
+		for i in range(t):
+			Po = self.x()
+			self.update()
+			Pt = Po*(1+self.x())
+			Rt.append(np.log(Pt)-np.log(Po))
+			print(i+" step")
+		Rt = np.array(Rt)
+		return (Rt-np.mean(Rt))/np.std(Rt)
+		
+		
+
+
+
+
+
+
+
+
+
 
 
 	
-
+"""
 	def update_GOL(self,model):
-		"""
+		
 		** Game of life **
 		Examine the number of neighbors for each cell of the matriz 
 		and determine the future of the cell. 1 or 0 
@@ -216,7 +264,7 @@ class Cellular_automata(object):
 		   If the cell is alive and has 2 neighbors , it alives
 		   Otherwise, the cell is dead 
 		4. replace the grid matriz in the variable Ngrid 
-		"""
+		
 		self.Ngrid = np.zeros((self.size,self.size))
 
 		#if self.size[0,0]:
@@ -280,3 +328,4 @@ class Cellular_automata(object):
 
 
 		
+"""
