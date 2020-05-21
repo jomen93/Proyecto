@@ -1,6 +1,9 @@
+
 import numpy as np
 import matplotlib.pyplot as plt 
 import matplotlib.patches as mpatches
+import random
+import numba
 
 class Cellular_automata(object):
 	"""Initial definition of the world. Determine the dimensions"""
@@ -11,20 +14,22 @@ class Cellular_automata(object):
 		self.hh = hh
 		
 
-	def make_grid(self, p):
+	def make_grid(self, p_Buy,p_Sell):
 		"""
 		Method to construct the grid, p refers to the probability
 		to find ones
+		
+		This procedure generates only a random matrix with ones and zeros, it's wrong !
+		
+		but kept this in (debug mode)
+		self.grid = np.random.rand(self.size,self.size)
+		self.grid = np.where(self.grid >= p ,0,1)
 		"""
-		# This procedure generates only a random matrix with ones and zeros, it's wrong !
-		# but kept this
-		#self.grid = np.random.rand(self.size,self.size)
-		#self.grid = np.where(self.grid >= p ,0,1)
-		p_Buy, p_Sell = p*np.random.random_sample(2)
+		#p_Buy, p_Sell = p*np.random.random_sample(2)
 		self.grid = np.random.choice([-1,1,0], size = (self.size,self.size),p=[p_Buy,p_Sell,1-p_Sell-p_Buy])
 
 
-	def show_grid(self):
+	def show_grid(self,name, save = False):
 		selling = np.sum(self.grid > 0)
 		buying = np.sum(self.grid < 0)
 		inactive = self.size**2-selling - buying
@@ -33,14 +38,15 @@ class Cellular_automata(object):
 		plt.figure(figsize =(10,8))
 		im = plt.imshow(self.grid, interpolation = None)
 		colors = [im.cmap(im.norm(value)) for value in values]
-		patches = [ mpatches.Patch(color=colors[i], label="Level {l}".format(l=values[i]) ) for i in range(len(values)) ]
+		patches = [ mpatches.Patch(color=colors[i], label="Estado {l}".format(l=values[i]) ) for i in range(len(values)) ]
 		plt.legend(handles = patches,loc = 4, borderaxespad = 0.)
 		plt.xlabel("x")
 		plt.xlabel("y")
 		plt.title("selling ={}, buying = {}, inactive ={}".format(selling,buying,inactive))
-		plt.savefig("percolation")
-		plt.show()
-		print("state report")
+		if save == True:
+			plt.savefig("percolation_"+str(name))
+		#print("state report"+str(name))
+		return [im]
 
 	def state(self):
 		"""
@@ -89,7 +95,7 @@ class Cellular_automata(object):
 		def union(m,n,labels):
 			labels[int(find(m,labels)[0])] = int(find(n,labels)[0])
 			return labels
-
+		
 		def new_label(clust,labels):
 			nlabels = np.zeros(self.size**2)
 			for i in range(0,self.size):
@@ -143,7 +149,7 @@ class Cellular_automata(object):
 		self.index = []
 		for k in range(self.n_clusters):
 			s = np.where(self.grid_label == np.unique(self.grid_label)[k])
-			self.index.append(zip(s[0],s[1]))
+			self.index.append(list(zip(s[0],s[1])))
 
 		self.index = np.array(self.index)
 
@@ -168,6 +174,7 @@ class Cellular_automata(object):
 
 	def sigma(self,k,i):
 		return self.grid[self.index[k][i]]
+	
 	
 	def I(self,k,i):
 		I_aux = 0
@@ -199,11 +206,78 @@ class Cellular_automata(object):
 					if self.p(k,i) < 0.5:
 						self.grid[self.index[k][i]] = -1
 
-			print("update successful")
+		#print("update successful")
 	
 
-	def update_grid(self):
-		pass
+	def update_grid_ising(self, beta = 0.9):
+		"""
+		Implementation of ising model to update the dynamics of the grid
+		"""
+		@numba.njit
+		def ising_update(field, n,m):
+			total = 0
+			N, M = field.shape
+			for i in range(n-1,n+2):
+				for j in range(m-1,m+2):
+					if i == n and j==m:
+						continue 
+					total += field[i%N, j%M]
+			dE = 2*field[n,m]*total
+			if dE <= 0:
+				field[n,m] *= -1
+			elif np.exp(-dE*beta) > np.random.rand():
+				field[n,m] *=  -1
+		
+		@numba.njit
+		def ising_step(field,beta = 0.4):
+			total = 0
+			N, M = field.shape
+			for n_offset in range(2):
+				for m_offset in range(2):
+					for n in range(n_offset,N,2):
+						for m in range(m_offset,M,2):
+							ising_update(field,n,m)
+			return field
+
+		ising_step(self.grid)
+
+
+	def market_dynamics(self):
+
+		def count_neighbors(grid,i,j):
+			aux_grid = grid[i-1:i+2,j-1:j+2]
+			if grid[i,j] !=0:
+				return (np.count_nonzero(aux_grid)-1)
+			else:
+				return (np.count_nonzero(aux_grid))
+
+		def step_sell():
+			for i in range(1,len(self.grid)-1):
+				for j in range(1,len(self.grid)-1):
+					if self.grid[i,j] == 1 and count_neighbors(self.grid,i,j) < 2:
+						self.grid[i,j] = 0
+					if self.grid[i,j] == 1 and count_neighbors(self.grid,i,j) ==2 and count_neighbors(self.grid,i,j) ==3:
+						self.grid[i,j] = 1
+					if self.grid[i,j] == 1 and count_neighbors(self.grid,i,j) >3:
+						self.grid[i,j] = 0
+					if self.grid[i,j] == 0 and count_neighbors(self.grid,i,j) ==3:
+						self.grid[i,j] = 1
+
+		def step_buy():
+			for i in range(1,len(self.grid)-1):
+				for j in range(1,len(self.grid)-1):
+					if self.grid[i,j] == -1 and count_neighbors(self.grid,i,j) < 2:
+						self.grid[i,j] = 0
+					if self.grid[i,j] == -1 and count_neighbors(self.grid,i,j) ==2 and count_neighbors(self.grid,i,j) ==3:
+						self.grid[i,j] = -1
+					if self.grid[i,j] == -1 and count_neighbors(self.grid,i,j) >3:
+						self.grid[i,j] = 0
+					if self.grid[i,j] == 0 and count_neighbors(self.grid,i,j) ==3:
+						self.grid[i,j] = -1
+		step_sell()
+		step_buy()
+					
+
 
 	def x(self):
 		"""
@@ -239,93 +313,4 @@ class Cellular_automata(object):
 		
 
 
-
-
-
-
-
-
-
-
-
 	
-"""
-	def update_GOL(self,model):
-		
-		** Game of life **
-		Examine the number of neighbors for each cell of the matriz 
-		and determine the future of the cell. 1 or 0 
-
-		Algorithm 
-
-		1. Choose a cell
-		2. Count neighbors
-		3. If the cell has 3 neighbors, it lives
-		   If the cell is alive and has 2 neighbors , it alives
-		   Otherwise, the cell is dead 
-		4. replace the grid matriz in the variable Ngrid 
-		
-		self.Ngrid = np.zeros((self.size,self.size))
-
-		#if self.size[0,0]:
-
-		for i in range(self.size):
-		 	for j in range(self.size):
-		 		# variable to count neighbor each step
-		 		s = 0
-
-		 		# Neighbors condition 
-		 		for k in [-1,1]:
-		 			kx1 = i+k
-		 			kx2 = i
-
-		 			ky1 = j
-		 			ky2 = j+k
-		 			ky3 = j-k
-
-		 			if kx1 < 0: kx1 == self.size - 1
-		 			elif kx1 == self.size: kx1 = 0 
-
-					if kx2 < 0: kx2 == self.size - 1
-		 			elif kx2 == self.size: kx2 = 0 
-
-		 			if ky1 < 0: ky1 == self.size - 1
-		 			elif ky1 == self.size: ky1 = 0 
-
-					if ky2 < 0: ky2 == self.size - 1
-		 			elif ky2 == self.size: ky2 = 0 
-
-		 			if ky3 < 0: ky3 == self.size - 1
-		 			elif ky3 == self.size: ky3 = 0 		 			
-
-		 			s += self.grid[kx1,ky1]+self.grid[kx2,ky2]
-		 			+self.grid[kx1,ky2]+self.grid[kx1,ky3]
-
-
-		 		if model == "Game of Life":
-			 		# Automata Rules of Game of life
-
-			 		if self.grid[i,j] == 1:
-		 				if s == 3 or s == 2:
-							self.Ngrid[i,j] = 1
-						else:
-							self.Ngrid[i,j] = 0
-
-					if self.grid[i,j] == 0:
-						if s == 3:
-				 			self.Ngrid[i,j] = 1
-				 		else:
-				 			self.Ngrid[i,j] = 0
-
-		self.grid = self.Ngrid
-
-
-
-
-
-
-
-
-
-		
-"""

@@ -1,5 +1,8 @@
+import matplotlib 
+matplotlib.use("TKAgg")
 import numpy as np 
 import matplotlib.pyplot as plt 
+import matplotlib.animation as animation
 
 def plot_all(data):
 	days = np.arange(np.shape(data)[0])
@@ -42,3 +45,5 @@ def plot_all(data):
 
 	plt.savefig("Data_complete")
 	print("plot save!")
+
+
