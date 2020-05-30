@@ -46,18 +46,9 @@ class Cellular_automata(object):
 		if save == True:
 			plt.savefig("percolation_"+str(name))
 		#print("state report"+str(name))
-		return [im]
+		plt.show()
+		
 
-	def state(self):
-		"""
-		Show the current state of the matriz
-		First = active cell
-		Second = death cell
-		"""
-		live = np.sum(self.grid > 0)
-		death = self.size**2-np.sum(self.grid>0)
-		#print("system state, live = {}, death = {}".format(live,death))
-		return live, death
 
 	def make_clusters(self):
 		"""
@@ -81,7 +72,9 @@ class Cellular_automata(object):
 		n_clust = 0
 		labels = np.arange(self.size**2)
 		clust = np.zeros((self.size,self.size),dtype = int)
+		self.grid_label = []
 
+		@numba.njit
 		def find(m, labels):
 			y = int(m)
 			while labels[y] != y:
@@ -96,10 +89,11 @@ class Cellular_automata(object):
 			labels[int(find(m,labels)[0])] = int(find(n,labels)[0])
 			return labels
 		
-		def new_label(clust,labels):
-			nlabels = np.zeros(self.size**2)
-			for i in range(0,self.size):
-				for j in range(0,self.size):
+		@numba.njit
+		def new_label(clust,labels,size):
+			nlabels = np.zeros(size**2)
+			for i in range(0,size):
+				for j in range(0,size):
 					if clust[i,j] != 0:
 						x, labels = find(clust[i,j],labels)
 						if nlabels[x] == 0:
@@ -139,29 +133,37 @@ class Cellular_automata(object):
 							clust[i,j],labels = find(clust[i-1,j],labels)
 
 		#self.grid = new_label(clust,labels)
-		self.grid_label = new_label(clust,labels) 
+		self.grid_label = new_label(clust,labels,self.size) 
 
 		# Clusters numbers
-		self.n_clusters = len(np.unique(self.grid_label))-1
+		self.n_clusters = len(np.unique(self.grid_label))
 		# Matrix of index number for a k-cluster
 		# first index refers to k-clster
 		# second to find coordinate in cluster matrix
-		self.index = []
-		for k in range(self.n_clusters):
-			s = np.where(self.grid_label == np.unique(self.grid_label)[k])
-			self.index.append(list(zip(s[0],s[1])))
+		
+		###############################################################
 
-		self.index = np.array(self.index)
+		# self.index = []
+		# for k in range(self.n_clusters):
+		# 	s = np.where(self.grid_label == np.unique(self.grid_label)[k])
+		# 	self.index.append(list(zip(s[0],s[1])))
 
-		# Random variables to define A
+		# self.index = np.array(self.index)
+
+	def index(self,k,i):
+		s = list(np.argwhere(self.grid_label == k))[i]
+		return s[0],s[1]
+		
+
+	def Random_variables(self):
 		# xi lives in [0,clusters number]
 		self.xi = np.random.uniform(-1,1,self.n_clusters)
 		# eta lives in [0,spins_numbers in k cluster number :0,k-cluster number]
 		self.eta = []
 		for k in range(self.n_clusters):
-			self.eta.append(np.random.uniform(-1,1,(len(self.index[k]),len(self.index[k]))))
+			n = len(list(np.argwhere(self.grid_label == k)))
+			self.eta.append(np.random.uniform(-1,1,(n,n)))
 		self.eta = np.array(self.eta)
-		#print("Cluster numbers = {}".format(self.n_clusters))
 		# zita lives in [0, clusters number]
 		self.zita = np.random.uniform(-1,1,self.n_clusters)
 
@@ -173,12 +175,12 @@ class Cellular_automata(object):
 		return self.hh*self.zita[k]
 
 	def sigma(self,k,i):
-		return self.grid[self.index[k][i]]
+		return self.grid[self.index(k,i)]
 	
-	
+
 	def I(self,k,i):
 		I_aux = 0
-		Nk = len(self.index[k])
+		Nk = len(list(np.argwhere(self.grid_label == k)))
 		for j in range(Nk):
 			if k == 0:
 				I_aux += self.A(k,i,j)*(self.sigma(k,j)) + self.h(k,i) 
@@ -194,22 +196,32 @@ class Cellular_automata(object):
 	
 		# Atention with the espin of the 0-cluster and 0-trader !!
 		return 1./(1+np.exp(-2*self.I(k,i)))
-
-	def update_traders(self):
-		for k in range(self.n_clusters):
-			for i in range(len(self.index[k])):
-				if self.grid[self.index[k][i]] != 0:
-					if self.p(k,i) > 0.5:
-						self.grid[self.index[k][i]] = 1
-					if  self.p(k,i) == 0.5:
-						self.grid[self.index[k][i]] = self.grid[self.index[k][i]] 
-					if self.p(k,i) < 0.5:
-						self.grid[self.index[k][i]] = -1
-
-		#print("update successful")
 	
+	def update_traders(self):
 
-	def update_grid_ising(self, beta = 0.9):
+		# 
+
+		#Inactive trader convert in active trader
+		self.grid[self.grid == 0] = np.random.choice([-1,1,0], size = len(self.grid[self.grid==0]),p=[0.01,0.01,0.98])
+		#self.grid[self.grid == 1] = np.random.choice([-1,1,0], size = len(self.grid[self.grid==1]),p=[0.1,0.8,0.1])
+		#self.grid[self.grid ==-1] = np.random.choice([-1,1,0], size = len(self.grid[self.grid==-1]),p=[0.8,0.1,0.1])
+
+
+		# for k in range(self.n_clusters):
+		# 	for i in range(len(list(np.argwhere(self.grid_label == k)))):
+		# 		if self.grid[self.index(k,i)] !=0:
+		# 			prob = round(self.p(k,i),2) 
+		# 			if prob > 0.5:
+		# 				self.grid[self.index(k,i)] = 1
+		# 			if prob < 0.5:
+		# 				self.grid[self.index(k,i)] = -1
+		# 			if prob == 0.5:
+		# 				self.grid[self.index(k,i)] = 0
+					
+
+					
+
+	def update_grid_ising(self, beta = 0.5):
 		"""
 		Implementation of ising model to update the dynamics of the grid
 		"""
@@ -229,7 +241,7 @@ class Cellular_automata(object):
 				field[n,m] *=  -1
 		
 		@numba.njit
-		def ising_step(field,beta = 0.4):
+		def ising_step(field):
 			total = 0
 			N, M = field.shape
 			for n_offset in range(2):
