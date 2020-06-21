@@ -38,7 +38,7 @@ def init_square_lattice(length: int, occupation_prob: float) -> np.ndarray:
 
 def start_fire(lattice: np.ndarray):
     has_trees = lattice[0,:] == SiteStatus.TREE
-    lattice[0, has_trees] = SiteStatus.BURNING
+    lattice[64-2:64+2, 64-2:64+2] = SiteStatus.BURNING
     return lattice
 
 @jit(nopython=True)
@@ -124,7 +124,7 @@ def run_simulation(n: int, p: float) -> Dict:
 
 if __name__ == "__main__":
     np.random.seed(1)
-    plot_animation_single_instance(128, 0.59)
+    plot_animation_single_instance(128, 0.70)
 
 
 

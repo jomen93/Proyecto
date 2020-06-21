@@ -221,7 +221,7 @@ class Cellular_automata(object):
 
 					
 
-	def update_grid_ising(self, beta = 0.5):
+	def update_grid_ising(self, beta = 0.3):
 		"""
 		Implementation of ising model to update the dynamics of the grid
 		"""
@@ -297,30 +297,47 @@ class Cellular_automata(object):
 		Ncl : the number of clusters on the grid
 		Nk : the size of the kth cluster
 		beta: normalization constant
-		"""
-		X = 0; N = 0
-		Ncl = self.n_clusters
-		for k in range(Ncl):
-			Nk = len(self.index[k])
-			for i in range(Nk):
-				if k == 0:
-					X += Nk*self.sigma(k,i)
-					N += self.sigma(k,i)
-				else:
-					X += Nk*self.sigma(k,i)/k
-					N += self.sigma(k,i)/k
-		return float(X)/N
+		"""	
+		X = 0
+		beta = 1/self.size**2
+		for k in range(self.n_clusters):
+			Nk = len(list(np.argwhere(self.grid_label == k)))
+			for i in range(Nk): X += Nk*self.sigma(k,i)	
+		return beta*X
 
-	def R(self,t):
-		Rt = []
-		for i in range(t):
-			Po = self.x()
-			self.update()
-			Pt = Po*(1+self.x())
-			Rt.append(np.log(Pt)-np.log(Po))
-			print(i+" step")
-		Rt = np.array(Rt)
-		return (Rt-np.mean(Rt))/np.std(Rt)
+
+
+	def Price(self, Po):
+		return Po*(1 + self.x())
+
+	
+
+
+
+			
+		# for k in range(Ncl):
+		# 			Nk = len(list(np.argwhere(self.grid_label == k)))
+		# 			for i in range(Nk):
+		# 				if k == 0:
+		# 					X += Nk*self.sigma(k,i)
+		# 					N += self.sigma(k,i)
+		# 				else:
+		# 					X += Nk*self.sigma(k,i)/k
+		# 					N += self.sigma(k,i)/k
+		# return X/N
+
+
+
+	# def R(self,t):
+	# 	Rt = []
+	# 	for i in range(t):
+	# 		Po = self.x()
+	# 		self.update()
+	# 		Pt = Po*(1+self.x())
+	# 		Rt.append(np.log(Pt)-np.log(Po))
+	# 		print(i+" step")
+	# 	Rt = np.array(Rt)
+	# 	return (Rt-np.mean(Rt))/np.std(Rt)
 		
 		
 
