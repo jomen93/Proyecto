@@ -24,7 +24,7 @@ size = 64
 A = 1.0
 a = 0.001
 h = 0
-steps = 254
+steps = 1024
 
 fig = plt.figure()
 
@@ -35,18 +35,13 @@ system.make_clusters()
 
 ims = []
 price = []; price.append(system.x())
-x_price = np.arange(steps)
+x_price = np.arange(steps+1)
 
 for i in range(steps):
 	print("progress = \033[91m {:.2f}%\033[0m".format((i/steps)*100)+"\r",end ="")
 	system.make_clusters()
 	system.update_grid_ising()
 	price.append(system.x())
-	im, = plt.plot(x_price[:i], price[:i], color='black')
-	title_im = plt.text(4*size/10,size,"Cluster = {}".format(system.n_clusters))
-
-	ims.append([im,title_im])
-
-ani = animation.ArtistAnimation(fig,ims, interval = 500, blit = False)
-ani.save("hoshen-kopelman.gif", dpi = 80, writer = "imagemagick")
-plt.show()
+	
+np.savetxt('x_price.csv', x_price, delimiter=',')
+np.savetxt('price.csv', price, delimiter=',')

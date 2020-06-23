@@ -77,8 +77,8 @@ if execute == True:
 		shuffledLw = b[lw]
 		
 		Automata1.update_grid_ising()
-		#Automata1.Random_variables()
-		#Automata1.update_traders()
+		Automata1.Random_variables()
+		Automata1.update_traders()
 		price.append(Automata1.x())
 		line2,  = ax2.plot(x_price[:i], price[:i], color='black')
 		
